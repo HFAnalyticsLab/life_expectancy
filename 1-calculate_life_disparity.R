@@ -35,12 +35,22 @@ pacman::p_load(readxl,
 here()
 
 
+# create vector of country names
+countries <- c("uk")
+
+# create empty list to store results
+results <- vector(mode = "list", length = length(countries))
+
+
+for (country in countries){
+  
 # Import data ####
     ## data were downloaded from: https://www.mortality.org/ 
     ## using 1x5 life tables for each country
-ukdta <- s3read_using(read_excel
-                      , object = 's3://thf-dap-tier0-projects-iht-067208b7-projectbucket-1mrmynh0q7ljp/Francesca/life_expectancy/data/lifetable_uk_total.xlsx', 
-                      skip = 2)
+[country]dta <- s3read_using(read_excel
+                      , object = 's3://thf-dap-tier0-projects-iht-067208b7-projectbucket-1mrmynh0q7ljp/Francesca/life_expectancy/data/lifetable_[country]_total.xlsx' 
+                      , skip = 2)
+}
 
 # drop last three columns
 ukdta <- ukdta %>% 
@@ -52,8 +62,20 @@ ukdta <- ukdta %>%
   mutate(tmp=dx*ex)
 
 ukdta <- ukdta %>%
-  filter(Year=='2015-2018') %>%
-  mutate(ldsp_1518=sum(tmp)/100000)
+  group_by(Year) %>%
+  mutate(ldsp=sum(tmp)/100000)
+
+
+# Extract life expectancy and life disparity and add to list
+e0 <- ukdta$ex[ukdta$Year == '2015-2018' & ukdta$Age == 0]
+e0
+ld <- ukdta$ldsp_1518[ukdta$Year == '2015-2018' & ukdta$Age == 0]
+ld
+
+df <- data.frame(e0, ld, "uk")
+
+results <- c(results, L1 = list(df))
+
 
 
 # France

@@ -36,7 +36,15 @@ here()
 
 
 # create vector of country names
-countries <- c("uk")
+countries <- c("australia", "austria", "belarus", "belgium", "bulgaria", "canada", 
+               "chile", "croatia", "czechia", "denmark", "estonia", "finland", "france", 
+               "germany", "greece", "hongkong", "hungary", "iceland", "ireland",
+               "israel", "italy", "japan", "korea", "latvia", "lithuania", "luxembourg",
+               "netherlands", "norway", "poland", "portugal", "slovakia", "slovenia",
+               "spain", "sweden", "switzerland", "uk", "usa")
+  # new zealand, russia and ukraine data available but only for 2010-13
+  # removed taiwan until get population size
+  
 
 # create empty list to store results
 results <- vector(mode = "list", length = length(countries))
@@ -47,204 +55,156 @@ for (country in countries){
 # Import data ####
     ## data were downloaded from: https://www.mortality.org/ 
     ## using 1x5 life tables for each country
-[country]dta <- s3read_using(read_excel
-                      , object = 's3://thf-dap-tier0-projects-iht-067208b7-projectbucket-1mrmynh0q7ljp/Francesca/life_expectancy/data/lifetable_[country]_total.xlsx' 
+countrydta <- s3read_using(read_excel
+                      , object = paste0('s3://thf-dap-tier0-projects-iht-067208b7-projectbucket-1mrmynh0q7ljp/Francesca/life_expectancy/data/lifetable_', country, '_total.xlsx') 
                       , skip = 2)
-}
+
 
 # drop last three columns
-ukdta <- ukdta %>% 
-  dplyr::select(-...11, -...12, -...13)
+countrydta <- countrydta %>% 
+  dplyr::select(Year:ex)
 
 
 # Calculate life disparity
-ukdta <- ukdta %>%
+countrydta <- countrydta %>%
   mutate(tmp=dx*ex)
 
-ukdta <- ukdta %>%
+countrydta <- countrydta %>%
   group_by(Year) %>%
   mutate(ldsp=sum(tmp)/100000)
 
 
+
 # Extract life expectancy and life disparity and add to list
-e0 <- ukdta$ex[ukdta$Year == '2015-2018' & ukdta$Age == 0]
+e0 <- countrydta$ex[substr(countrydta$Year, 1, 4) == '2015' & countrydta$Age == 0]
 e0
-ld <- ukdta$ldsp_1518[ukdta$Year == '2015-2018' & ukdta$Age == 0]
+ld <- countrydta$ldsp[substr(countrydta$Year, 1, 4) == '2015' & countrydta$Age == 0]
 ld
 
-df <- data.frame(e0, ld, "uk")
+df <- data.frame(e0, ld, country)
 
-results <- c(results, L1 = list(df))
+results <- c(results, list(df))
+}
 
 
 
-# France
-frdta <- s3read_using(read_excel
-                      , object = 's3://thf-dap-tier0-projects-iht-067208b7-projectbucket-1mrmynh0q7ljp/Francesca/life_expectancy/data/lifetable_france_total.xlsx', 
-                      skip = 2)
+# bind all dataframes together
+results <- bind_rows(results)
+
+results <- results %>%
+  mutate(country = str_to_title(country))
+
+
+# Change name for USA/UK
+results <- results %>%
+  mutate(country = replace(country, country == "Uk", "UK"),
+        country = replace(country, country == "Usa", "USA"),
+        country = replace(country, country == "Hongkong", "Hong Kong"))
+
+
+nrow(results)
+
+
+
+# Load data for population size
+popsize <- s3read_using(read_excel
+                        , object = 's3://thf-dap-tier0-projects-iht-067208b7-projectbucket-1mrmynh0q7ljp/Francesca/life_expectancy/data/country_population_worldbank.xls' 
+                        , skip = 3)
+  
+# Keep only 2015 population
+popsize <- popsize %>%
+  dplyr::select(country = `Country Name`, popsize = `2015`, code = `Country Code`)
+
+# Edit country names to match results dataframe
+popsize <- popsize %>%
+  mutate(country = replace(country, country == "United Kingdom", "UK"),
+         country = replace(country, country == "United States", "USA"), 
+         country = replace(country, country == "Korea, Rep.", "Korea"),
+         country = replace(country, country == "Czech Republic", "Czechia"), 
+         country = replace(country, country == "Hong Kong SAR, China", "Hong Kong"), 
+         country = replace(country, country == "Slovak Republic", "Slovakia"))
+
+
+# Merge onto results dataframe
+results <- merge(results, popsize, by="country")
+
+nrow(results)
+
+
+# Bubble plot
+pacman::p_load(hrbrthemes, viridis)
+
+codes <- results$code
+
+ggplot(results, aes(x=e0, y=ld, size = popsize)) +
+  geom_point(alpha=0.5, color="red") +
+  scale_size(range = c(.1, 16), name = "Population (2015)") +
+  ylab("Life disparity") +
+  xlab("Life expectancy at birth") +
+  scale_fill_viridis(discrete=TRUE, guide= "none", option="A") +
+  theme(legend.position = "none") +
+  theme_light() +
+  scale_x_continuous(limits = c(72, 87)) +
+  scale_y_continuous(limits = c(9, 13)) +
+  geom_text( 
+    label = codes,
+    nudge_x = 0.5, 
+    size = 2.5)
+ggsave("life_disparity_countries.png")
+
+
+ # option for removing overlapping labels  check_overlap = T, 
+
+
+
+
+# UK bubble chart over time
+country <- "uk"
+countrydta <- s3read_using(read_excel
+                           , object = paste0('s3://thf-dap-tier0-projects-iht-067208b7-projectbucket-1mrmynh0q7ljp/Francesca/life_expectancy/data/lifetable_', country, '_total.xlsx') 
+                           , skip = 2)
+
+
+# drop last three columns
+countrydta <- countrydta %>% 
+  dplyr::select(Year:ex)
+
 
 # Calculate life disparity
-frdta <- frdta %>%
+countrydta <- countrydta %>%
   mutate(tmp=dx*ex)
 
-frdta <- frdta %>%
-  filter(Year=='2015-2019') %>%
-  mutate(ldsp_1518=sum(tmp)/100000)
+countrydta <- countrydta %>%
+  group_by(Year) %>%
+  mutate(ldsp=sum(tmp)/100000)
+
+countrydta <- countrydta %>%
+  dplyr::filter(Age == 0)
 
 
-# Germany
-gedta <- s3read_using(read_excel
-                      , object = 's3://thf-dap-tier0-projects-iht-067208b7-projectbucket-1mrmynh0q7ljp/Francesca/life_expectancy/data/lifetable_germany_total.xlsx', 
-                      skip = 2)
+# Bubble plot
+years <- countrydta$Year
 
-# Calculate life disparity
-gedta <- gedta %>%
-  mutate(tmp=dx*ex)
+uk_bubble <- ggplot(countrydta, aes(x=ex, y=ldsp)) +
+  geom_point(alpha=0.5, color="red") +
+  ylab("Life disparity") +
+  xlab("Life expectancy at birth") +
+  scale_fill_viridis(discrete=TRUE, guide= "none", option="A") +
+  theme(legend.position = "none") +
+  theme_light() +
+  scale_x_continuous(limits = c(55, 87)) +
+  scale_y_continuous(limits = c(9, 20)) +
+  geom_text( 
+    label = years,
+    nudge_x = 1.5, 
+    size = 2.1)
+uk_bubble
 
-gedta <- gedta %>%
-  filter(Year=='2015-2017') %>%
-  mutate(ldsp_1518=sum(tmp)/100000)
-
-# Netherlands
-nldta <- s3read_using(read_excel
-                      , object = 's3://thf-dap-tier0-projects-iht-067208b7-projectbucket-1mrmynh0q7ljp/Francesca/life_expectancy/data/lifetable_netherlands_total.xlsx', 
-                      skip = 2)
-
-# Calculate life disparity
-nldta <- nldta %>%
-  mutate(tmp=dx*ex)
-
-nldta <- nldta %>%
-  filter(Year=='2015-2019') %>%
-  mutate(ldsp_1518=sum(tmp)/100000)
-
-
-# Norway
-nwdta <- s3read_using(read_excel
-                      , object = 's3://thf-dap-tier0-projects-iht-067208b7-projectbucket-1mrmynh0q7ljp/Francesca/life_expectancy/data/lifetable_norway_total.xlsx', 
-                      skip = 2)
-
-# Calculate life disparity
-nwdta <- nwdta %>%
-  mutate(tmp=dx*ex)
-
-nwdta <- nwdta %>%
-  filter(Year=='2015-2019') %>%
-  mutate(ldsp_1518=sum(tmp)/100000)
-
-
-# USA
-usdta <- s3read_using(read_excel
-                      , object = 's3://thf-dap-tier0-projects-iht-067208b7-projectbucket-1mrmynh0q7ljp/Francesca/life_expectancy/data/lifetable_usa_total.xlsx', 
-                      skip = 2)
-
-# Calculate life disparity
-usdta <- usdta %>%
-  mutate(tmp=dx*ex)
-
-usdta <- usdta %>%
-  filter(Year=='2015-2019') %>%
-  mutate(ldsp_1518=sum(tmp)/100000)
-
-
-# Japan
-jpdta <- s3read_using(read_excel
-                      , object = 's3://thf-dap-tier0-projects-iht-067208b7-projectbucket-1mrmynh0q7ljp/Francesca/life_expectancy/data/lifetable_japan_total.xlsx', 
-                      skip = 2)
-
-# Calculate life disparity
-jpdta <- jpdta %>%
-  mutate(tmp=dx*ex)
-
-jpdta <- jpdta %>%
-  filter(Year=='2015-2019') %>%
-  mutate(ldsp_1518=sum(tmp)/100000)
-
-
-# Korea
-krdta <- s3read_using(read_excel
-                      , object = 's3://thf-dap-tier0-projects-iht-067208b7-projectbucket-1mrmynh0q7ljp/Francesca/life_expectancy/data/lifetable_korea_total.xlsx', 
-                      skip = 2)
-
-# Calculate life disparity
-krdta <- krdta %>%
-  mutate(tmp=dx*ex)
-
-krdta <- krdta %>%
-  filter(Year=='2015-2018') %>%
-  mutate(ldsp_1518=sum(tmp)/100000)
-
-
-# Australia
-aldta <- s3read_using(read_excel
-                      , object = 's3://thf-dap-tier0-projects-iht-067208b7-projectbucket-1mrmynh0q7ljp/Francesca/life_expectancy/data/lifetable_australia_total.xlsx', 
-                      skip = 2)
-
-# Calculate life disparity
-aldta <- aldta %>%
-  mutate(tmp=dx*ex)
-
-aldta <- aldta %>%
-  filter(Year=='2015-2019') %>%
-  mutate(ldsp_1518=sum(tmp)/100000)
-
-
-# Austria
-audta <- s3read_using(read_excel
-                      , object = 's3://thf-dap-tier0-projects-iht-067208b7-projectbucket-1mrmynh0q7ljp/Francesca/life_expectancy/data/lifetable_austria_total.xlsx', 
-                      skip = 2)
-
-# Calculate life disparity
-audta <- audta %>%
-  mutate(tmp=dx*ex)
-
-audta <- audta %>%
-  filter(Year=='2015-2019') %>%
-  mutate(ldsp_1518=sum(tmp)/100000)
+s3save_image(ggsave(uk_bubble, 's3://thf-dap-tier0-projects-iht-067208b7-projectbucket-1mrmynh0q7ljp/Francesca/life_expectancy'))
 
 
 
-# Poland
-podta <- s3read_using(read_excel
-                      , object = 's3://thf-dap-tier0-projects-iht-067208b7-projectbucket-1mrmynh0q7ljp/Francesca/life_expectancy/data/lifetable_poland_total.xlsx', 
-                      skip = 2)
 
-# Calculate life disparity
-podta <- podta %>%
-  mutate(tmp=dx*ex)
-
-podta <- podta %>%
-  filter(Year=='2015-2019') %>%
-  mutate(ldsp_1518=sum(tmp)/100000)
-
-
-
-# Czechia
-czdta <- s3read_using(read_excel
-                      , object = 's3://thf-dap-tier0-projects-iht-067208b7-projectbucket-1mrmynh0q7ljp/Francesca/life_expectancy/data/lifetable_czechia_total.xlsx', 
-                      skip = 2)
-
-# Calculate life disparity
-czdta <- czdta %>%
-  mutate(tmp=dx*ex)
-
-czdta <- czdta %>%
-  filter(Year=='2015-2019') %>%
-  mutate(ldsp_1518=sum(tmp)/100000)
-
-
-# Italy
-itdta <- s3read_using(read_excel
-                      , object = 's3://thf-dap-tier0-projects-iht-067208b7-projectbucket-1mrmynh0q7ljp/Francesca/life_expectancy/data/lifetable_italy_total.xlsx', 
-                      skip = 2)
-
-# Calculate life disparity
-itdta <- itdta %>%
-  mutate(tmp=dx*ex)
-
-itdta <- itdta %>%
-  filter(Year=='2015-2019') %>%
-  mutate(ldsp_1518=sum(tmp)/100000)
 
 
 # Following bit of code is from the Hiam et al. paper on life disparity

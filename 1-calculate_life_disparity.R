@@ -41,7 +41,7 @@ countries <- c("australia", "austria", "belarus", "belgium", "bulgaria", "canada
                "germany", "greece", "hongkong", "hungary", "iceland", "ireland",
                "israel", "italy", "japan", "korea", "latvia", "lithuania", "luxembourg",
                "netherlands", "norway", "poland", "portugal", "slovakia", "slovenia",
-               "spain", "sweden", "switzerland", "uk", "usa")
+               "spain", "sweden", "switzerland", "taiwan", "uk", "usa")
   # new zealand, russia and ukraine data available but only for 2010-13
   # removed taiwan until get population size
   
@@ -115,6 +115,12 @@ popsize <- s3read_using(read_excel
 popsize <- popsize %>%
   dplyr::select(country = `Country Name`, popsize = `2015`, code = `Country Code`)
 
+# Add in Taiwan
+popsize[nrow(popsize) + 1, 1] = "Taiwan"
+popsize[nrow(popsize), 2] = 23492000
+popsize[nrow(popsize), 3] = "TWN"
+
+
 # Edit country names to match results dataframe
 popsize <- popsize %>%
   mutate(country = replace(country, country == "United Kingdom", "UK"),
@@ -136,8 +142,8 @@ pacman::p_load(hrbrthemes, viridis)
 
 codes <- results$code
 
-ggplot(results, aes(x=e0, y=ld, size = popsize)) +
-  geom_point(alpha=0.5, color="red") +
+bubble_countries <- ggplot(results, aes(x=e0, y=ld, size = popsize)) +
+  geom_point(alpha=0.5, color='#dd0031') +
   scale_size(range = c(.1, 16), name = "Population (2015)") +
   ylab("Life disparity") +
   xlab("Life expectancy at birth") +
@@ -149,11 +155,20 @@ ggplot(results, aes(x=e0, y=ld, size = popsize)) +
   geom_text( 
     label = codes,
     nudge_x = 0.5, 
+    check_overlap = T,
     size = 2.5)
-ggsave("life_disparity_countries.png")
-
-
  # option for removing overlapping labels  check_overlap = T, 
+bubble_countries
+
+
+# below command doesn't work - saved manually for now
+s3write_using(bubble_countries # What R object we are saving
+              , FUN = ggsave # Which R function we are using to save
+              , object = 'life_disparity_countries.png' # Name of the file to save to (include file type)
+              , bucket = 's3://thf-dap-tier0-projects-iht-067208b7-projectbucket-1mrmynh0q7ljp/Francesca/life_expectancy') # Bucket name defined above
+
+
+
 
 
 
@@ -186,7 +201,7 @@ countrydta <- countrydta %>%
 years <- countrydta$Year
 
 uk_bubble <- ggplot(countrydta, aes(x=ex, y=ldsp)) +
-  geom_point(alpha=0.5, color="red") +
+  geom_point(alpha=0.5, color='#dd0031') +
   ylab("Life disparity") +
   xlab("Life expectancy at birth") +
   scale_fill_viridis(discrete=TRUE, guide= "none", option="A") +
@@ -197,9 +212,12 @@ uk_bubble <- ggplot(countrydta, aes(x=ex, y=ldsp)) +
   geom_text( 
     label = years,
     nudge_x = 1.5, 
+    check_overlap = T,
     size = 2.1)
 uk_bubble
 
+
+# doesn't work either 
 s3save_image(ggsave(uk_bubble, 's3://thf-dap-tier0-projects-iht-067208b7-projectbucket-1mrmynh0q7ljp/Francesca/life_expectancy'))
 
 

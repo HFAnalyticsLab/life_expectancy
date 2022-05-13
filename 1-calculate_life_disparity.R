@@ -162,11 +162,11 @@ bubble_countries
 
 
 # below command doesn't work - saved manually for now
-s3write_using(bubble_countries # What R object we are saving
+aws.s3::s3write_using(bubble_countries # What R object we are saving
               , FUN = ggsave # Which R function we are using to save
-              , object = 'life_disparity_countries.png' # Name of the file to save to (include file type)
-              , bucket = 's3://thf-dap-tier0-projects-iht-067208b7-projectbucket-1mrmynh0q7ljp/Francesca/life_expectancy') # Bucket name defined above
-
+              , object = 'Francesca/life_expectancy/life_disparity_countries.png' # Name of the file to save to (include file type)
+              , bucket = 's3://thf-dap-tier0-projects-iht-067208b7-projectbucket-1mrmynh0q7ljp/' # Bucket name defined above
+              , device = NULL)
 
 
 
@@ -197,10 +197,31 @@ countrydta <- countrydta %>%
   dplyr::filter(Age == 0)
 
 
+# Rename to match names in results df
+countrydta <- countrydta %>% 
+  rename(e0 = ex, 
+         ld = ldsp)
+
+
+# Append uk data to countrydta
+countrydta <- countrydta %>% 
+  dplyr::select(Year, e0, ld)
+
+countrydta <- countrydta %>%
+  mutate(country = "UK hist")
+
+
+combined <- bind_rows(results, countrydta)
+
+combined <- combined %>%
+  mutate(group=country == "UK hist",
+         popsize = replace_na(popsize, 3000000))
+
+
 # Bubble plot
 years <- countrydta$Year
 
-uk_bubble <- ggplot(countrydta, aes(x=ex, y=ldsp)) +
+uk_bubble <- ggplot(countrydta, aes(x=e0, y=ld)) +
   geom_point(alpha=0.5, color='#dd0031') +
   ylab("Life disparity") +
   xlab("Life expectancy at birth") +
@@ -218,8 +239,45 @@ uk_bubble
 
 
 # doesn't work either 
-s3save_image(ggsave(uk_bubble, 's3://thf-dap-tier0-projects-iht-067208b7-projectbucket-1mrmynh0q7ljp/Francesca/life_expectancy'))
+s3save_image(ggsave(uk_bubble
+                    , 's3://thf-dap-tier0-projects-iht-067208b7-projectbucket-1mrmynh0q7ljp/Francesca/life_expectancy')
+                    , device = NULL)
 
+
+
+# overlay both bubble plots
+
+bubble_overlay <- ggplot(combined, aes(x=e0, y=ld, size=popsize, color = group, group = group)) +
+  geom_point(alpha=0.5, aes(color=group)) +
+  scale_size(range = c(.1, 16), name = "Population (2015)", breaks = c(1000000, 10000000, 100000000), labels = c("1,000,000", "10,000,000", "100,000,000")) +
+  scale_color_manual(values = c('#dd0031', '#00AFBB'), name= "", labels=c("All countries - 2015", "UK - historical")) +
+  scale_fill_viridis(discrete=TRUE, guide= "none", option="A") +
+  theme(legend.position = "none") +
+  theme_light() +
+  ylab("Life disparity") +
+  xlab("Life expectancy at birth")
+bubble_overlay
+
+
+# above works, now trying to add in labels
+codes <- combined$codes
+
+bubble_overlay <- ggplot(combined, aes(x=e0, y=ld, size=popsize, color = group, group = group)) +
+  geom_point(alpha=0.5, aes(color=group)) +
+  geom_text(subset(combined, group == "FALSE"), 
+    label = codes,
+    nudge_x = 0.5, 
+    check_overlap = T,
+    size = 2.5) +
+  scale_size(range = c(.1, 16), name = "Population (2015)", breaks = c(1000000, 10000000, 100000000), labels = c("1,000,000", "10,000,000", "100,000,000")) +
+  scale_color_manual(values = c('#dd0031', '#00AFBB'), name= "", labels=c("All countries - 2015", "UK - historical")) +
+  scale_fill_viridis(discrete=TRUE, guide= "none", option="A") +
+  theme(legend.position = "none") +
+  theme_light() +
+  ylab("Life disparity") +
+  xlab("Life expectancy at birth") 
+bubble_overlay
+# option for removing overlapping labels  check_overlap = T, 
 
 
 

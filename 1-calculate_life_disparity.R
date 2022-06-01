@@ -29,7 +29,8 @@ pacman::p_load(readxl,
                kableExtra, 
                openxlsx,
                MortalityLaws, 
-               patchwork)
+               patchwork, 
+               data.table)
 
 # check working directory
 here()
@@ -43,11 +44,12 @@ countries <- c("australia", "austria", "belarus", "belgium", "bulgaria", "canada
                "netherlands", "norway", "poland", "portugal", "slovakia", "slovenia",
                "spain", "sweden", "switzerland", "taiwan", "uk", "usa")
   # new zealand, russia and ukraine data available but only for 2010-13
-  # removed taiwan until get population size
-  
+
 
 # create empty list to store results
 results <- vector(mode = "list", length = length(countries))
+
+
 
 
 for (country in countries){
@@ -64,28 +66,104 @@ countrydta <- s3read_using(read_excel
 countrydta <- countrydta %>% 
   dplyr::select(Year:ex)
 
+# recode 110+ to 110
+countrydta <- countrydta %>% 
+  mutate(Age = replace(Age, Age == '110+', '110' ))
+countrydta <- countrydta %>% 
+  mutate(Age = as.numeric(Age))
 
-# Calculate life disparity
+# Measures of variation for age 0 ####
+# Calculate life disparity at age 0
 countrydta <- countrydta %>%
   mutate(tmp=dx*ex)
 
 countrydta <- countrydta %>%
   group_by(Year) %>%
-  mutate(ldsp=sum(tmp)/100000)
+  mutate(ldsp0=sum(tmp)/100000)
+
+# Calculate standard deviation of life expectancy at birth
+
+  # create variable with life expectancy at birth for each year  
+countrydta <- countrydta %>%
+    group_by(Year) %>%
+    mutate(e0 = ex[Age == 0L])
+  # calculate mean age at death - works out the same as e0
+countrydta <- countrydta %>%
+  mutate(mu=sum((Age + ax)*dx)/100000)
+  # calculate distance to life expectancy in each age band, weighted by number of deaths in interval
+countrydta <- countrydta %>%
+  mutate(tmp=((Age + ax)-e0)^2*dx)
+  # calculate standard deviation
+countrydta <- countrydta %>%
+  group_by(Year) %>%
+  mutate(sd=sqrt(sum(tmp)/(100000-1)))
+
+
+# Measures of variation at age 10 ####
+# Calculate life disparity at age 10
+countrydta <- countrydta %>%
+  mutate(tmp=case_when(Age>=10 ~ dx*ex))
+
+countrydta <- countrydta %>%
+  group_by(Year) %>%
+  mutate(l10 = lx[Age == 10L])
+
+countrydta <- countrydta %>%
+  group_by(Year) %>%
+  mutate(ldsp10=sum(tmp, na.rm = TRUE)/l10)
+
+# remove unnecessary columns
+countrydta <- dplyr::select(countrydta, -mx, -Lx)
+
+
+# Calculate standard deviation
+
+# create variable with life expectancy at age 10 for each year  
+countrydta <- countrydta %>%
+  group_by(Year) %>%
+  mutate(e10 = ex[Age == 10L])
+# calculate mean age at death - works out the same as e10 +10
+countrydta <- countrydta %>%
+  group_by(Year) %>%
+  dplyr::filter(Age >=10) %>%
+  mutate(mu=case_when( Age>=10 ~ sum((Age + ax)*dx)/l10))
+
+countrydta <- countrydta %>%
+  group_by(Year) %>%
+  mutate(mu2=sum((Age + ax)*dx)/l10)
+
+# calculate distance to life expectancy in each age band, weighted by number of deaths in interval
+countrydta <- countrydta %>%
+  mutate(tmp= ((mu)-(Age + ax))^2*dx)
+# calculate standard deviation
+countrydta <- countrydta %>%
+  group_by(Year) %>%
+  mutate(sd10=sqrt(sum(tmp)/(l10-1)))
+
+  # NOTE: this one somehow gives us a sd a little higher than for sd0 - is this right??
 
 
 
 # Extract life expectancy and life disparity and add to list
 e0 <- countrydta$ex[substr(countrydta$Year, 1, 4) == '2015' & countrydta$Age == 0]
 e0
-ld <- countrydta$ldsp[substr(countrydta$Year, 1, 4) == '2015' & countrydta$Age == 0]
-ld
+e10 <- countrydta$ex[substr(countrydta$Year, 1, 4) == '2015' & countrydta$Age == 10]
+e10
+ld0 <- countrydta$ldsp0[substr(countrydta$Year, 1, 4) == '2015' & countrydta$Age == 0]
+ld0
+sd0 <- countrydta$sd2[substr(countrydta$Year, 1, 4) == '2015' & countrydta$Age == 0]
+sd0
+ld10 <- countrydta$ldsp10[substr(countrydta$Year, 1, 4) == '2015' & countrydta$Age == 10]
+ld10
+sd10 <- countrydta$sd10[substr(countrydta$Year, 1, 4) == '2015' & countrydta$Age == 10]
+sd10
 
-df <- data.frame(e0, ld, country)
+df <- data.frame(e0, e10, ld0, sd0, ld10, sd10, country)
 
 results <- c(results, list(df))
 }
 
+# NOTE: Tuljapurkar 2010 uses e0 as central measure and s10 as measure of dispersion
 
 
 # bind all dataframes together
@@ -137,43 +215,22 @@ results <- merge(results, popsize, by="country")
 nrow(results)
 
 
-# Bubble plot
-pacman::p_load(hrbrthemes, viridis)
+#Save dataset 
 
-codes <- results$code
+buck <- 'thf-dap-tier0-projects-iht-067208b7-projectbucket-1mrmynh0q7ljp/Francesca/life_expectancy' ## my bucket name
 
-bubble_countries <- ggplot(results, aes(x=e0, y=ld, size = popsize)) +
-  geom_point(alpha=0.5, color='#dd0031') +
-  scale_size(range = c(.1, 16), name = "Population (2015)") +
-  ylab("Life disparity") +
-  xlab("Life expectancy at birth") +
-  scale_fill_viridis(discrete=TRUE, guide= "none", option="A") +
-  theme(legend.position = "none") +
-  theme_light() +
-  scale_x_continuous(limits = c(72, 87)) +
-  scale_y_continuous(limits = c(9, 13)) +
-  geom_text( 
-    label = codes,
-    nudge_x = 0.5, 
-    check_overlap = T,
-    size = 2.5)
- # option for removing overlapping labels  check_overlap = T, 
-bubble_countries
-
-
-# below command doesn't work - saved manually for now
-aws.s3::s3write_using(bubble_countries # What R object we are saving
-              , FUN = ggsave # Which R function we are using to save
-              , object = 'Francesca/life_expectancy/life_disparity_countries.png' # Name of the file to save to (include file type)
-              , bucket = 's3://thf-dap-tier0-projects-iht-067208b7-projectbucket-1mrmynh0q7ljp/' # Bucket name defined above
-              , device = NULL)
+s3write_using(results # What R object we are saving
+              , FUN = write_rds # Which R function we are using to save
+              , object = 'results.RDS' # Name of the file to save to (include file type)
+              , bucket = buck) # Bucket name defined above
 
 
 
 
 
 
-# UK bubble chart over time
+
+# UK data over time for bubble plot ####
 country <- "uk"
 countrydta <- s3read_using(read_excel
                            , object = paste0('s3://thf-dap-tier0-projects-iht-067208b7-projectbucket-1mrmynh0q7ljp/Francesca/life_expectancy/data/lifetable_', country, '_total.xlsx') 
@@ -184,6 +241,11 @@ countrydta <- s3read_using(read_excel
 countrydta <- countrydta %>% 
   dplyr::select(Year:ex)
 
+# recode 110+ to 110
+countrydta <- countrydta %>% 
+  mutate(Age = replace(Age, Age == '110+', '110' ))
+countrydta <- countrydta %>% 
+  mutate(Age = as.numeric(Age))
 
 # Calculate life disparity
 countrydta <- countrydta %>%
@@ -191,21 +253,66 @@ countrydta <- countrydta %>%
 
 countrydta <- countrydta %>%
   group_by(Year) %>%
-  mutate(ldsp=sum(tmp)/100000)
+  mutate(ldsp0=sum(tmp)/100000)
+
+
+# standard deviation in life expectancy
+# create variable with life expectancy at birth for each year  
+countrydta <- countrydta %>%
+  group_by(Year) %>%
+  mutate(e0 = ex[Age == 0L])
+# calculate distance to life expectancy in each age band, weighted by number of deaths in interval
+countrydta <- countrydta %>%
+  mutate(tmp=(e0-(Age + ax))^2*dx)
+# calculate standard deviation
+countrydta <- countrydta %>%
+  group_by(Year) %>%
+  mutate(sd2=sqrt(sum(tmp)/100000))
+
+
+# Measures of variation at age 10 ####
+# Calculate life disparity at age 10
+countrydta <- countrydta %>%
+  mutate(tmp=case_when(Age>=10 ~ dx*ex))
 
 countrydta <- countrydta %>%
-  dplyr::filter(Age == 0)
+  group_by(Year) %>%
+  mutate(l10 = lx[Age == 10L])
+
+countrydta <- countrydta %>%
+  group_by(Year) %>%
+  mutate(ldsp10=sum(tmp, na.rm = TRUE)/l10)
+
+
+# create variable with life expectancy at birth for each year  
+countrydta <- countrydta %>%
+  group_by(Year) %>%
+  mutate(e10 = ex[Age == 10L])
+# calculate distance to life expectancy in each age band, weighted by number of deaths in interval
+countrydta <- countrydta %>%
+  mutate(tmp= ((e10)-(Age -10 + ax))^2*dx)
+# calculate standard deviation
+countrydta <- countrydta %>%
+  group_by(Year) %>%
+  mutate(sd10=case_when(Age >=10 ~ sqrt(sum(tmp)/l10)))
+
+# NOTE: this one somehow gives us a sd a little higher than for sd0 - is this right??
+
+
+countrydta <- countrydta %>%
+  dplyr::filter(Age == 10)
 
 
 # Rename to match names in results df
 countrydta <- countrydta %>% 
-  rename(e0 = ex, 
-         ld = ldsp)
+  rename(ld10 = ldsp10, 
+         ld0 = ldsp0, 
+         sd0 = sd2)
 
 
 # Append uk data to countrydta
 countrydta <- countrydta %>% 
-  dplyr::select(Year, e0, ld)
+  dplyr::select(Year, e0, e10, ld0, ld10, sd0, sd10)
 
 countrydta <- countrydta %>%
   mutate(country = "UK hist")
@@ -218,66 +325,12 @@ combined <- combined %>%
          popsize = replace_na(popsize, 3000000))
 
 
-# Bubble plot
-years <- countrydta$Year
+# Save dataset
+s3write_using(combined # What R object we are saving
+              , FUN = write_rds # Which R function we are using to save
+              , object = 'combined.RDS' # Name of the file to save to (include file type)
+              , bucket = buck) # Bucket name defined above
 
-uk_bubble <- ggplot(countrydta, aes(x=e0, y=ld)) +
-  geom_point(alpha=0.5, color='#dd0031') +
-  ylab("Life disparity") +
-  xlab("Life expectancy at birth") +
-  scale_fill_viridis(discrete=TRUE, guide= "none", option="A") +
-  theme(legend.position = "none") +
-  theme_light() +
-  scale_x_continuous(limits = c(55, 87)) +
-  scale_y_continuous(limits = c(9, 20)) +
-  geom_text( 
-    label = years,
-    nudge_x = 1.5, 
-    check_overlap = T,
-    size = 2.1)
-uk_bubble
-
-
-# doesn't work either 
-s3save_image(ggsave(uk_bubble
-                    , 's3://thf-dap-tier0-projects-iht-067208b7-projectbucket-1mrmynh0q7ljp/Francesca/life_expectancy')
-                    , device = NULL)
-
-
-
-# overlay both bubble plots
-
-bubble_overlay <- ggplot(combined, aes(x=e0, y=ld, size=popsize, color = group, group = group)) +
-  geom_point(alpha=0.5, aes(color=group)) +
-  scale_size(range = c(.1, 16), name = "Population (2015)", breaks = c(1000000, 10000000, 100000000), labels = c("1,000,000", "10,000,000", "100,000,000")) +
-  scale_color_manual(values = c('#dd0031', '#00AFBB'), name= "", labels=c("All countries - 2015", "UK - historical")) +
-  scale_fill_viridis(discrete=TRUE, guide= "none", option="A") +
-  theme(legend.position = "none") +
-  theme_light() +
-  ylab("Life disparity") +
-  xlab("Life expectancy at birth")
-bubble_overlay
-
-
-# above works, now trying to add in labels
-codes <- combined$codes
-
-bubble_overlay <- ggplot(combined, aes(x=e0, y=ld, size=popsize, color = group, group = group)) +
-  geom_point(alpha=0.5, aes(color=group)) +
-  geom_text(subset(combined, group == "FALSE"), 
-    label = codes,
-    nudge_x = 0.5, 
-    check_overlap = T,
-    size = 2.5) +
-  scale_size(range = c(.1, 16), name = "Population (2015)", breaks = c(1000000, 10000000, 100000000), labels = c("1,000,000", "10,000,000", "100,000,000")) +
-  scale_color_manual(values = c('#dd0031', '#00AFBB'), name= "", labels=c("All countries - 2015", "UK - historical")) +
-  scale_fill_viridis(discrete=TRUE, guide= "none", option="A") +
-  theme(legend.position = "none") +
-  theme_light() +
-  ylab("Life disparity") +
-  xlab("Life expectancy at birth") 
-bubble_overlay
-# option for removing overlapping labels  check_overlap = T, 
 
 
 
@@ -285,12 +338,16 @@ bubble_overlay
 
 # Following bit of code is from the Hiam et al. paper on life disparity
   ## https://github.com/JonMinton/rising_tide/blob/master/analyses.Rmd
+country <- "uk"
+countrydta <- s3read_using(read_excel
+                           , object = paste0('s3://thf-dap-tier0-projects-iht-067208b7-projectbucket-1mrmynh0q7ljp/Francesca/life_expectancy/data/lifetable_', country, '_total.xlsx') 
+                           , skip = 2)
 
-calc_e_dagger_parts <- function(LT, omega = 100){
-  calc_ell_a <- function(LT, a){
-    exp(-sum(LT$mx[LT$x <= a]))
+
+calc_e_dagger_parts <- function(countrydta, omega = 100){
+    exp(-sum(countrydta$mx[countrydta$x <= a]))
   }
-  LT %>% 
+countrydta %>% 
     filter(x <= omega) %>% 
     mutate(ell_x = map_dbl(x, calc_ell_a, LT = LT)) %>% 
     mutate(e_dagger_component = ell_x * ex * mx) %>% 

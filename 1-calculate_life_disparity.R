@@ -49,8 +49,7 @@ countries <- c("australia", "austria", "belarus", "belgium", "bulgaria", "canada
 # create empty list to store results
 results <- vector(mode = "list", length = length(countries))
 
-
-
+country <- "uk"
 
 for (country in countries){
   
@@ -96,7 +95,37 @@ countrydta <- countrydta %>%
   # calculate standard deviation
 countrydta <- countrydta %>%
   group_by(Year) %>%
-  mutate(sd=sqrt(sum(tmp)/(100000-1)))
+  mutate(sd0=sqrt(sum(tmp)/(100000-1)))
+
+
+# Calculate Gini coefficient
+
+# cumulative percentage of population deaths
+countrydta <- countrydta %>%
+  group_by(Year) %>%
+  mutate(dx_cum = cumsum(dx)/sum(dx))
+
+# cumulative percentage of life years lived by people before death
+countrydta <- countrydta %>%
+  group_by(Year) %>%
+  mutate(Lx_deaths = ((Age + ax)*dx))
+countrydta <- countrydta %>%
+  group_by(Year) %>%
+  mutate(Lx_prop = (Lx_deaths/sum(Lx_deaths)))
+countrydta <- countrydta %>%
+  group_by(Year) %>%
+  mutate(Lx_cum = cumsum(Lx_deaths)/sum(Lx))
+
+# calculate area below curve
+countrydta <- countrydta %>%
+  group_by(Year) %>%
+  mutate(area = (dx_cum - Lx_cum)*(Lx_prop))
+
+# calculate gini coefficient
+countrydta <- countrydta %>%
+  group_by(Year) %>%
+  mutate(gini = (sum(area)/0.5))
+
 
 
 # Measures of variation at age 10 ####
@@ -140,18 +169,18 @@ countrydta <- countrydta %>%
   group_by(Year) %>%
   mutate(sd10=sqrt(sum(tmp)/(l10-1)))
 
-  # NOTE: this one somehow gives us a sd a little higher than for sd0 - is this right??
+  # NOTE: sd10 is slightly lower than sd0, this is consistent
 
 
 
 # Extract life expectancy and life disparity and add to list
-e0 <- countrydta$ex[substr(countrydta$Year, 1, 4) == '2015' & countrydta$Age == 0]
+e0 <- countrydta$e0[substr(countrydta$Year, 1, 4) == '2015' & countrydta$Age == 10]
 e0
 e10 <- countrydta$ex[substr(countrydta$Year, 1, 4) == '2015' & countrydta$Age == 10]
 e10
-ld0 <- countrydta$ldsp0[substr(countrydta$Year, 1, 4) == '2015' & countrydta$Age == 0]
+ld0 <- countrydta$ldsp0[substr(countrydta$Year, 1, 4) == '2015' & countrydta$Age == 10]
 ld0
-sd0 <- countrydta$sd2[substr(countrydta$Year, 1, 4) == '2015' & countrydta$Age == 0]
+sd0 <- countrydta$sd0[substr(countrydta$Year, 1, 4) == '2015' & countrydta$Age == 10]
 sd0
 ld10 <- countrydta$ldsp10[substr(countrydta$Year, 1, 4) == '2015' & countrydta$Age == 10]
 ld10

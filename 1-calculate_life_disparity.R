@@ -284,7 +284,7 @@ countrydta <- countrydta %>%
 
 countrydta <- countrydta %>%
   group_by(Year) %>%
-  mutate(ldsp0=sum(tmp)/100000)
+  mutate(ld0=sum(tmp)/100000)
 
 # Calculate standard deviation of life expectancy at birth
 
@@ -345,7 +345,7 @@ countrydta <- countrydta %>%
 
 countrydta <- countrydta %>%
   group_by(Year) %>%
-  mutate(ldsp10=sum(tmp, na.rm = TRUE)/l10)
+  mutate(ld10=sum(tmp, na.rm = TRUE)/l10)
 
 # remove unnecessary columns
 countrydta <- dplyr::select(countrydta, -mx, -Lx)

@@ -42,39 +42,12 @@ results <- s3read_using(import # Which function are we using to read
 
 
 
-# Bubble plot
+# Load packages and create vector for codes
 pacman::p_load(hrbrthemes, viridis)
 
 codes <- results$code
 
-bubble_countries <- ggplot(results, aes(x=e0, y=ld0, size = popsize)) +
-  geom_point(alpha=0.5, color='#dd0031') +
-  scale_size(range = c(.1, 16), name = "Population (2015)") +
-  ylab("Life disparity") +
-  xlab("Life expectancy at birth") +
-  scale_fill_viridis(discrete=TRUE, guide= "none", option="A") +
-  theme(legend.position = "none") +
-  theme_light() +
-  scale_x_continuous(limits = c(72, 87)) +
-  scale_y_continuous(limits = c(9, 13)) +
-  geom_text( 
-    label = codes,
-    nudge_x = 0.5, 
-    check_overlap = T,
-    size = 2.5)
-# option for removing overlapping labels  check_overlap = T, 
-bubble_countries
-
-
-# below command doesn't work - saved manually for now
-aws.s3::s3write_using(bubble_countries # What R object we are saving
-                      , FUN = ggsave # Which R function we are using to save
-                      , object = 'Francesca/life_expectancy/life_disparity_countries.png' # Name of the file to save to (include file type)
-                      , bucket = 'buck' # Bucket name defined above
-                      , device = NULL)
-
-
-# Check correlation between different measures of lifespan variation
+# 1 - Check correlation between different measures of lifespan variation
 
 ld0_ld10 <- ggplot(results, aes(x=ld0, y=ld10)) +
   geom_point(alpha=0.5, color='#dd0031') +
@@ -123,7 +96,7 @@ sd0_ld0 <- ggplot(results, aes(x=sd0, y=ld0)) +
   scale_fill_viridis(discrete=TRUE, guide= "none", option="A") +
   theme(legend.position = "none") +
   theme_light() +
-  scale_x_continuous(limits = c(10, 18)) +
+  scale_x_continuous(limits = c(12, 18)) +
   scale_y_continuous(limits = c(6, 16)) +
   geom_smooth(method = 'lm') +
   geom_text( 
@@ -157,7 +130,144 @@ cor(results$sd0, results$gini)
 
 
 
-# UK bubble plot
+# 2 - Bubble plot all countries 2015-19
+
+# life disparity at age 0
+bubble_countries_ld0 <- ggplot(results, aes(x=e0, y=ld0, size = popsize)) +
+  geom_point(alpha=0.5, color='#dd0031') +
+  scale_size(range = c(.1, 16), name = "Population (2015)") +
+  ylab("Life disparity") +
+  xlab("Life expectancy at birth") +
+  scale_fill_viridis(discrete=TRUE, guide= "none", option="A") +
+  theme(legend.position = "none") +
+  theme_light() +
+  scale_x_continuous(limits = c(72, 87)) +
+  scale_y_continuous(limits = c(9, 13)) +
+  geom_text( 
+    label = codes,
+    nudge_x = 0.5, 
+    check_overlap = T,
+    size = 2.5)
+# option for removing overlapping labels  check_overlap = T, 
+bubble_countries_ld0
+# save graph
+ggsave("bubble_countries_2015.tiff")
+put_object(
+  file = 'bubble_countries_2015.tiff', 
+  object = 'outputs/bubble_countries_2015_lifedisparity0.tiff',
+  bucket = buck) 
+unlink("bubble_countries_2015.tiff")
+
+
+# life disparity at age 10
+bubble_countries_ld10 <- ggplot(results, aes(x=e0, y=ld10, size = popsize)) +
+  geom_point(alpha=0.5, color='#dd0031') +
+  scale_size(range = c(.1, 16), name = "Population (2015)") +
+  ylab("Life disparity at age 10") +
+  xlab("Life expectancy at birth") +
+  scale_fill_viridis(discrete=TRUE, guide= "none", option="A") +
+  theme(legend.position = "none") +
+  theme_light() +
+  scale_x_continuous(limits = c(72, 87)) +
+  scale_y_continuous(limits = c(9, 13)) +
+  geom_text( 
+    label = codes,
+    nudge_x = 0.5, 
+    check_overlap = T,
+    size = 2.5)
+# option for removing overlapping labels  check_overlap = T, 
+bubble_countries_ld10
+# save graph
+ggsave("bubble_countries_2015.tiff")
+put_object(
+  file = 'bubble_countries_2015.tiff', 
+  object = 'outputs/bubble_countries_2015_lifedisparity10.tiff',
+  bucket = buck) 
+unlink("bubble_countries_2015.tiff")
+
+
+# standard deviation in age at death (age 0)
+bubble_countries_sd0 <- ggplot(results, aes(x=e0, y=sd0, size = popsize)) +
+  geom_point(alpha=0.5, color='#dd0031') +
+  scale_size(range = c(.1, 16), name = "Population (2015)") +
+  ylab("Standard deviation in age at death (age 0)") +
+  xlab("Life expectancy at birth") +
+  scale_fill_viridis(discrete=TRUE, guide= "none", option="A") +
+  theme(legend.position = "none") +
+  theme_light() +
+  scale_x_continuous(limits = c(72, 87)) +
+  scale_y_continuous(limits = c(12, 18)) +
+  geom_text( 
+    label = codes,
+    nudge_x = 0.5, 
+    check_overlap = T,
+    size = 2.5)
+# option for removing overlapping labels  check_overlap = T, 
+bubble_countries_sd0
+# save graph
+ggsave("bubble_countries_2015.tiff")
+put_object(
+  file = 'bubble_countries_2015.tiff', 
+  object = 'outputs/bubble_countries_2015_standarddev0.tiff',
+  bucket = buck) 
+unlink("bubble_countries_2015.tiff")
+
+
+# standard deviation in age at death (age 10)
+bubble_countries_sd10 <- ggplot(results, aes(x=e0, y=sd10, size = popsize)) +
+  geom_point(alpha=0.5, color='#dd0031') +
+  scale_size(range = c(.1, 16), name = "Population (2015)") +
+  ylab("Standard deviation in age at death (age 10)") +
+  xlab("Life expectancy at birth") +
+  scale_fill_viridis(discrete=TRUE, guide= "none", option="A") +
+  theme(legend.position = "none") +
+  theme_light() +
+  scale_x_continuous(limits = c(72, 87)) +
+  scale_y_continuous(limits = c(12, 18)) +
+  geom_text( 
+    label = codes,
+    nudge_x = 0.5, 
+    check_overlap = T,
+    size = 2.5)
+# option for removing overlapping labels  check_overlap = T, 
+bubble_countries_sd10
+# save graph
+ggsave("bubble_countries_2015.tiff")
+put_object(
+  file = 'bubble_countries_2015.tiff', 
+  object = 'outputs/bubble_countries_2015_standarddev10.tiff',
+  bucket = buck) 
+unlink("bubble_countries_2015.tiff")
+
+
+# gini coefficient (all ages)
+bubble_countries_gini <- ggplot(results, aes(x=e0, y=gini, size = popsize)) +
+  geom_point(alpha=0.5, color='#dd0031') +
+  scale_size(range = c(.1, 16), name = "Population (2015)") +
+  ylab("Gini coefficient - age at death (all ages)") +
+  xlab("Life expectancy at birth") +
+  scale_fill_viridis(discrete=TRUE, guide= "none", option="A") +
+  theme(legend.position = "none") +
+  theme_light() +
+  scale_x_continuous(limits = c(72, 87)) +
+  scale_y_continuous(limits = c(0.06, 0.12)) +
+  geom_text( 
+    label = codes,
+    nudge_x = 0.5, 
+    check_overlap = T,
+    size = 2.5)
+# option for removing overlapping labels  check_overlap = T, 
+bubble_countries_gini
+# save graph
+ggsave("bubble_countries_2015.tiff")
+put_object(
+  file = 'bubble_countries_2015.tiff', 
+  object = 'outputs/bubble_countries_2015_gini.tiff',
+  bucket = buck) 
+unlink("bubble_countries_2015.tiff")
+
+
+# 3 - UK bubble plot
 combined <- s3read_using(import # Which function are we using to read
                         , object = 'combined.RDS' # File to open
                         , bucket = buck) # Bucket name defined above
@@ -180,15 +290,17 @@ uk_bubble <- ggplot(subset(combined, country == 'UK hist'), aes(x=e0, y=ld0)) +
     size = 2.1)
 uk_bubble
 
+# Save graph 
+ggsave("uk_bubble_overtime.tiff")
+put_object(
+  file = 'uk_bubble_overtime.tiff', 
+  object = 'outputs/uk_bubble_overtime.tiff',
+  bucket = buck) 
+unlink("uk_bubble_overtime.tiff")
 
-# doesn't work either 
-s3save_image(ggsave(uk_bubble
-                    , 's3://thf-dap-tier0-projects-iht-067208b7-projectbucket-1mrmynh0q7ljp/Francesca/life_expectancy')
-             , device = NULL)
 
 
-
-# overlay both bubble plots
+# 4 - overlay both bubble plots
 
 bubble_overlay <- ggplot(combined, aes(x=e0, y=ld0, size=popsize, color = group, group = group)) +
   geom_point(alpha=0.5, aes(color=group)) +
@@ -201,8 +313,17 @@ bubble_overlay <- ggplot(combined, aes(x=e0, y=ld0, size=popsize, color = group,
   xlab("Life expectancy at birth")
 bubble_overlay
 
+# Save graph 
+ggsave("bubble_overlay")
+put_object(
+  file = 'bubble_overlay', 
+  object = 'outputs/bubble_overlay',
+  bucket = buck) 
+unlink("bubble_overlay")
+
 
 # above works, now trying to add in labels
+  # not succeeded so far 
 codes <- combined$codes
 
 bubble_overlay <- ggplot(combined, aes(x=e0, y=ld, size=popsize, color = group, group = group)) +

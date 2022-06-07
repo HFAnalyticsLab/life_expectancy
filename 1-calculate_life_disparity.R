@@ -49,7 +49,6 @@ countries <- c("australia", "austria", "belarus", "belgium", "bulgaria", "canada
 # create empty list to store results
 results <- vector(mode = "list", length = length(countries))
 
-country <- "uk"
 
 for (country in countries){
   
@@ -186,8 +185,10 @@ ld10 <- countrydta$ldsp10[substr(countrydta$Year, 1, 4) == '2015' & countrydta$A
 ld10
 sd10 <- countrydta$sd10[substr(countrydta$Year, 1, 4) == '2015' & countrydta$Age == 10]
 sd10
+gini <- countrydta$gini[substr(countrydta$Year, 1, 4) == '2015' & countrydta$Age == 10]
+gini
 
-df <- data.frame(e0, e10, ld0, sd0, ld10, sd10, country)
+df <- data.frame(e0, e10, ld0, sd0, ld10, sd10, gini, country)
 
 results <- c(results, list(df))
 }
@@ -276,7 +277,8 @@ countrydta <- countrydta %>%
 countrydta <- countrydta %>% 
   mutate(Age = as.numeric(Age))
 
-# Calculate life disparity
+# Measures of variation for age 0 ####
+# Calculate life disparity at age 0
 countrydta <- countrydta %>%
   mutate(tmp=dx*ex)
 
@@ -284,19 +286,52 @@ countrydta <- countrydta %>%
   group_by(Year) %>%
   mutate(ldsp0=sum(tmp)/100000)
 
+# Calculate standard deviation of life expectancy at birth
 
-# standard deviation in life expectancy
 # create variable with life expectancy at birth for each year  
 countrydta <- countrydta %>%
   group_by(Year) %>%
   mutate(e0 = ex[Age == 0L])
+# calculate mean age at death - works out the same as e0
+countrydta <- countrydta %>%
+  mutate(mu=sum((Age + ax)*dx)/100000)
 # calculate distance to life expectancy in each age band, weighted by number of deaths in interval
 countrydta <- countrydta %>%
-  mutate(tmp=(e0-(Age + ax))^2*dx)
+  mutate(tmp=((Age + ax)-e0)^2*dx)
 # calculate standard deviation
 countrydta <- countrydta %>%
   group_by(Year) %>%
-  mutate(sd2=sqrt(sum(tmp)/100000))
+  mutate(sd0=sqrt(sum(tmp)/(100000-1)))
+
+
+# Calculate Gini coefficient
+
+# cumulative percentage of population deaths
+countrydta <- countrydta %>%
+  group_by(Year) %>%
+  mutate(dx_cum = cumsum(dx)/sum(dx))
+
+# cumulative percentage of life years lived by people before death
+countrydta <- countrydta %>%
+  group_by(Year) %>%
+  mutate(Lx_deaths = ((Age + ax)*dx))
+countrydta <- countrydta %>%
+  group_by(Year) %>%
+  mutate(Lx_prop = (Lx_deaths/sum(Lx_deaths)))
+countrydta <- countrydta %>%
+  group_by(Year) %>%
+  mutate(Lx_cum = cumsum(Lx_deaths)/sum(Lx))
+
+# calculate area below curve
+countrydta <- countrydta %>%
+  group_by(Year) %>%
+  mutate(area = (dx_cum - Lx_cum)*(Lx_prop))
+
+# calculate gini coefficient
+countrydta <- countrydta %>%
+  group_by(Year) %>%
+  mutate(gini = (sum(area)/0.5))
+
 
 
 # Measures of variation at age 10 ####
@@ -312,31 +347,38 @@ countrydta <- countrydta %>%
   group_by(Year) %>%
   mutate(ldsp10=sum(tmp, na.rm = TRUE)/l10)
 
+# remove unnecessary columns
+countrydta <- dplyr::select(countrydta, -mx, -Lx)
 
-# create variable with life expectancy at birth for each year  
+
+# Calculate standard deviation
+
+# create variable with life expectancy at age 10 for each year  
 countrydta <- countrydta %>%
   group_by(Year) %>%
   mutate(e10 = ex[Age == 10L])
+# calculate mean age at death - works out the same as e10 +10
+countrydta <- countrydta %>%
+  group_by(Year) %>%
+  dplyr::filter(Age >=10) %>%
+  mutate(mu=case_when( Age>=10 ~ sum((Age + ax)*dx)/l10))
+
+countrydta <- countrydta %>%
+  group_by(Year) %>%
+  mutate(mu2=sum((Age + ax)*dx)/l10)
+
 # calculate distance to life expectancy in each age band, weighted by number of deaths in interval
 countrydta <- countrydta %>%
-  mutate(tmp= ((e10)-(Age -10 + ax))^2*dx)
+  mutate(tmp= ((mu)-(Age + ax))^2*dx)
 # calculate standard deviation
 countrydta <- countrydta %>%
   group_by(Year) %>%
-  mutate(sd10=case_when(Age >=10 ~ sqrt(sum(tmp)/l10)))
-
-# NOTE: this one somehow gives us a sd a little higher than for sd0 - is this right??
+  mutate(sd10=sqrt(sum(tmp)/(l10-1)))
 
 
 countrydta <- countrydta %>%
   dplyr::filter(Age == 10)
 
-
-# Rename to match names in results df
-countrydta <- countrydta %>% 
-  rename(ld10 = ldsp10, 
-         ld0 = ldsp0, 
-         sd0 = sd2)
 
 
 # Append uk data to countrydta
@@ -367,10 +409,30 @@ s3write_using(combined # What R object we are saving
 
 # Following bit of code is from the Hiam et al. paper on life disparity
   ## https://github.com/JonMinton/rising_tide/blob/master/analyses.Rmd
-country <- "uk"
-countrydta <- s3read_using(read_excel
-                           , object = paste0('s3://thf-dap-tier0-projects-iht-067208b7-projectbucket-1mrmynh0q7ljp/Francesca/life_expectancy/data/lifetable_', country, '_total.xlsx') 
-                           , skip = 2)
+Hiam_paper_dta <- s3read_using(import
+                           , object = 's3://thf-dap-tier0-projects-iht-067208b7-projectbucket-1mrmynh0q7ljp/Francesca/life_expectancy/data/dta_Mx.RDS' )
+
+dta_e0 <- s3read_using(import
+                               , object = 's3://thf-dap-tier0-projects-iht-067208b7-projectbucket-1mrmynh0q7ljp/Francesca/life_expectancy/data/dta_e0.RDS' )
+
+Hiam_paper_dta <- Hiam_paper_dta %>%
+  dplyr::filter(code == 'JPN' & year == '2017')
+
+dta_e0 <- dta_e0 %>%
+  dplyr::filter(code== 'JPN' & year == '2017')
+
+Hiam_paper_dta <-  merge(Hiam_paper_dta, dta_e0, by="sex")
+
+
+
+
+Hiam_paper_dta <- Hiam_paper_dta %>%
+  mutate(tmp=dx*ex)
+
+countrydta <- countrydta %>%
+  group_by(Year) %>%
+  mutate(ldsp0=sum(tmp)/100000)
+
 
 
 calc_e_dagger_parts <- function(countrydta, omega = 100){

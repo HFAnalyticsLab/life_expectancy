@@ -74,6 +74,88 @@ aws.s3::s3write_using(bubble_countries # What R object we are saving
                       , device = NULL)
 
 
+# Check correlation between different measures of lifespan variation
+
+ld0_ld10 <- ggplot(results, aes(x=ld0, y=ld10)) +
+  geom_point(alpha=0.5, color='#dd0031') +
+  labs(caption = "correlation = 0.996") +
+  ylab("Life disparity at age 10") +
+  xlab("Life disparity at age 0") +
+  scale_fill_viridis(discrete=TRUE, guide= "none", option="A") +
+  theme(legend.position = "none") +
+  theme_light() +
+  scale_x_continuous(limits = c(9, 13)) +
+  scale_y_continuous(limits = c(9, 13)) +
+  geom_abline(intercept = 0, slope = 1 ) +
+  geom_text( 
+    label = codes,
+    nudge_y = -0.1, 
+    check_overlap = T,
+    size = 2.5)
+ld0_ld10 
+cor(results$ld0, results$ld10)
+
+sd0_sd10 <- ggplot(results, aes(x=sd0, y=sd10)) +
+  geom_point(alpha=0.5, color='#dd0031') +
+  labs(caption = "correlation = 0.97") +
+  ylab("Standard deviation in age at death at age 10") +
+  xlab("Standard deviation in age at death at age 0") +
+  scale_fill_viridis(discrete=TRUE, guide= "none", option="A") +
+  theme(legend.position = "none") +
+  theme_light() +
+  scale_x_continuous(limits = c(10, 16)) +
+  scale_y_continuous(limits = c(10, 16)) +
+  geom_abline(intercept = 0, slope = 1 ) +
+  geom_text( 
+    label = codes,
+    nudge_y = -0.1, 
+    check_overlap = T,
+    size = 2.5) 
+sd0_sd10 
+cor(results$sd0, results$sd10)
+
+
+sd0_ld0 <- ggplot(results, aes(x=sd0, y=ld0)) +
+  geom_point(alpha=0.5, color='#dd0031') +
+  labs(caption = "correlation = 0.96") +
+  ylab("Life disparity at age 0") +
+  xlab("Standard deviation in age at death at age 0") +
+  scale_fill_viridis(discrete=TRUE, guide= "none", option="A") +
+  theme(legend.position = "none") +
+  theme_light() +
+  scale_x_continuous(limits = c(10, 18)) +
+  scale_y_continuous(limits = c(6, 16)) +
+  geom_smooth(method = 'lm') +
+  geom_text( 
+    label = codes,
+    nudge_y = -0.1, 
+    check_overlap = T,
+    size = 2.5)
+sd0_ld0 
+cor(results$sd0, results$ld0)
+
+
+sd0_gini <- ggplot(results, aes(x=sd0, y=gini)) +
+  geom_point(alpha=0.5, color='#dd0031') +
+  labs(caption = "correlation = 0.94") +
+  ylab("Gini coefficient (all ages)") +
+  xlab("Standard deviation in age at death at age 0") +
+  scale_fill_viridis(discrete=TRUE, guide= "none", option="A") +
+  theme(legend.position = "none") +
+  theme_light() +
+  scale_x_continuous(limits = c(12, 18)) +
+  scale_y_continuous(limits = c(0.05, 0.15)) +
+  geom_smooth(method = 'lm') +
+  geom_text( 
+    label = codes,
+    nudge_y = -0.1, 
+    check_overlap = T,
+    size = 2.5)
+sd0_gini
+cor(results$sd0, results$gini)
+
+
+
 
 # UK bubble plot
 combined <- s3read_using(import # Which function are we using to read

@@ -45,9 +45,17 @@ countries <- c("australia", "austria", "belarus", "belgium", "bulgaria", "canada
                "spain", "sweden", "switzerland", "taiwan", "uk", "usa")
   # new zealand, russia and ukraine data available but only for 2010-13
 
+# Create empty data frame
+results <- data.frame(Year=character(),
+                 e0=numeric(),
+                 e10=numeric(),
+                 ld0=numeric(),
+                 ld10=numeric(), 
+                 sd0=numeric(),
+                 sd10=numeric(), 
+                 gini=numeric(),
+                 country=character())
 
-# create empty list to store results
-results <- vector(mode = "list", length = length(countries))
 
 
 for (country in countries){
@@ -77,7 +85,7 @@ countrydta <- countrydta %>%
 
 countrydta <- countrydta %>%
   group_by(Year) %>%
-  mutate(ldsp0=sum(tmp)/100000)
+  mutate(ld0=sum(tmp)/100000)
 
 # Calculate standard deviation of life expectancy at birth
 
@@ -138,7 +146,7 @@ countrydta <- countrydta %>%
 
 countrydta <- countrydta %>%
   group_by(Year) %>%
-  mutate(ldsp10=sum(tmp, na.rm = TRUE)/l10)
+  mutate(ld10=sum(tmp, na.rm = TRUE)/l10)
 
 # remove unnecessary columns
 countrydta <- dplyr::select(countrydta, -mx, -Lx)
@@ -171,33 +179,25 @@ countrydta <- countrydta %>%
   # NOTE: sd10 is slightly lower than sd0, this is consistent
 
 
+# Keep only one row per year
+countrydta <- countrydta %>% 
+  dplyr::filter(Age == 10)
 
-# Extract life expectancy and life disparity and add to list
-e0 <- countrydta$e0[substr(countrydta$Year, 1, 4) == '2015' & countrydta$Age == 10]
-e0
-e10 <- countrydta$ex[substr(countrydta$Year, 1, 4) == '2015' & countrydta$Age == 10]
-e10
-ld0 <- countrydta$ldsp0[substr(countrydta$Year, 1, 4) == '2015' & countrydta$Age == 10]
-ld0
-sd0 <- countrydta$sd0[substr(countrydta$Year, 1, 4) == '2015' & countrydta$Age == 10]
-sd0
-ld10 <- countrydta$ldsp10[substr(countrydta$Year, 1, 4) == '2015' & countrydta$Age == 10]
-ld10
-sd10 <- countrydta$sd10[substr(countrydta$Year, 1, 4) == '2015' & countrydta$Age == 10]
-sd10
-gini <- countrydta$gini[substr(countrydta$Year, 1, 4) == '2015' & countrydta$Age == 10]
-gini
+# Select only variables of interest
+countrydta <- countrydta %>% 
+  dplyr::select(Year, e0, e10, ld0, ld10, sd0, sd10, gini)
 
-df <- data.frame(e0, e10, ld0, sd0, ld10, sd10, gini, country)
+# Add in column for country
+countrydta <- countrydta %>%
+  mutate(country = country)
 
-results <- c(results, list(df))
+# Append country to results df with all countries
+results <- rbind(results, countrydta)
 }
 
 # NOTE: Tuljapurkar 2010 uses e0 as central measure and s10 as measure of dispersion
 
 
-# bind all dataframes together
-results <- bind_rows(results)
 
 results <- results %>%
   mutate(country = str_to_title(country))
@@ -211,6 +211,7 @@ results <- results %>%
 
 
 nrow(results)
+tabyl(results$country)
 
 
 
@@ -254,10 +255,17 @@ s3write_using(results # What R object we are saving
               , object = 'results.RDS' # Name of the file to save to (include file type)
               , bucket = buck) # Bucket name defined above
 
+# Save excel version for Flourish
+s3write_using(results # What R object we are saving
+              , FUN = write.csv  # Which R function we are using to save
+              , object = 'results.csv' # Name of the file to save to (include file type)
+              , bucket = buck) # Bucket name defined above
 
 
 
 
+# below should not be necessary, since have now included all historical data for all countries in the results df
+  # to be removed once code has been checked 
 
 
 # UK data over time for bubble plot ####

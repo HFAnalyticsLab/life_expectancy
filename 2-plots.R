@@ -45,11 +45,11 @@ results <- s3read_using(import # Which function are we using to read
 # Load packages and create vector for codes
 pacman::p_load(hrbrthemes, viridis)
 
-codes <- results$code
+codes <- unique(results$code)
 
 # 1 - Check correlation between different measures of lifespan variation
 
-ld0_ld10 <- ggplot(results, aes(x=ld0, y=ld10)) +
+ld0_ld10 <- ggplot(subset(results, substr(results$Year, 1, 4) == '2015'), aes(x=ld0, y=ld10)) +
   geom_point(alpha=0.5, color='#dd0031') +
   labs(caption = "correlation = 0.996") +
   ylab("Life disparity at age 10") +
@@ -66,9 +66,10 @@ ld0_ld10 <- ggplot(results, aes(x=ld0, y=ld10)) +
     check_overlap = T,
     size = 2.5)
 ld0_ld10 
-cor(results$ld0, results$ld10)
+cor(subset(results,substr(results$Year, 1, 4) == '2015')$ld0, subset(results,substr(results$Year, 1, 4) == '2015')$ld10)
 
-sd0_sd10 <- ggplot(results, aes(x=sd0, y=sd10)) +
+
+sd0_sd10 <- ggplot(subset(results, substr(results$Year, 1, 4) == '2015'), aes(x=sd0, y=sd10)) +
   geom_point(alpha=0.5, color='#dd0031') +
   labs(caption = "correlation = 0.97") +
   ylab("Standard deviation in age at death at age 10") +
@@ -85,10 +86,11 @@ sd0_sd10 <- ggplot(results, aes(x=sd0, y=sd10)) +
     check_overlap = T,
     size = 2.5) 
 sd0_sd10 
-cor(results$sd0, results$sd10)
+cor(subset(results,substr(results$Year, 1, 4) == '2015')$sd0, subset(results,substr(results$Year, 1, 4) == '2015')$sd10)
 
 
-sd0_ld0 <- ggplot(results, aes(x=sd0, y=ld0)) +
+
+sd0_ld0 <- ggplot(subset(results, substr(results$Year, 1, 4) == '2015'), aes(x=sd0, y=ld0)) +
   geom_point(alpha=0.5, color='#dd0031') +
   labs(caption = "correlation = 0.96") +
   ylab("Life disparity at age 0") +
@@ -97,7 +99,7 @@ sd0_ld0 <- ggplot(results, aes(x=sd0, y=ld0)) +
   theme(legend.position = "none") +
   theme_light() +
   scale_x_continuous(limits = c(12, 18)) +
-  scale_y_continuous(limits = c(6, 16)) +
+  scale_y_continuous(limits = c(9, 13)) +
   geom_smooth(method = 'lm') +
   geom_text( 
     label = codes,
@@ -105,10 +107,10 @@ sd0_ld0 <- ggplot(results, aes(x=sd0, y=ld0)) +
     check_overlap = T,
     size = 2.5)
 sd0_ld0 
-cor(results$sd0, results$ld0)
+cor(subset(results,substr(results$Year, 1, 4) == '2015')$sd0, subset(results,substr(results$Year, 1, 4) == '2015')$ld0)
 
 
-sd0_gini <- ggplot(results, aes(x=sd0, y=gini)) +
+sd0_gini <- ggplot(subset(results, substr(results$Year, 1, 4) == '2015'), aes(x=sd0, y=gini)) +
   geom_point(alpha=0.5, color='#dd0031') +
   labs(caption = "correlation = 0.94") +
   ylab("Gini coefficient (all ages)") +
@@ -125,7 +127,7 @@ sd0_gini <- ggplot(results, aes(x=sd0, y=gini)) +
     check_overlap = T,
     size = 2.5)
 sd0_gini
-cor(results$sd0, results$gini)
+cor(subset(results,substr(results$Year, 1, 4) == '2015')$sd0, subset(results,substr(results$Year, 1, 4) == '2015')$gini)
 
 
 
@@ -133,7 +135,7 @@ cor(results$sd0, results$gini)
 # 2 - Bubble plot all countries 2015-19
 
 # life disparity at age 0
-bubble_countries_ld0 <- ggplot(results, aes(x=e0, y=ld0, size = popsize)) +
+bubble_countries_ld0 <- ggplot(subset(results, substr(results$Year, 1, 4) == '2015'), aes(x=e0, y=ld0, size = popsize)) +
   geom_point(alpha=0.5, color='#dd0031') +
   scale_size(range = c(.1, 16), name = "Population (2015)") +
   ylab("Life disparity") +
@@ -160,7 +162,7 @@ unlink("bubble_countries_2015.tiff")
 
 
 # life disparity at age 10
-bubble_countries_ld10 <- ggplot(results, aes(x=e0, y=ld10, size = popsize)) +
+bubble_countries_ld10 <- ggplot(subset(results, substr(results$Year, 1, 4) == '2015'), aes(x=e0, y=ld10, size = popsize)) +
   geom_point(alpha=0.5, color='#dd0031') +
   scale_size(range = c(.1, 16), name = "Population (2015)") +
   ylab("Life disparity at age 10") +
@@ -187,7 +189,7 @@ unlink("bubble_countries_2015.tiff")
 
 
 # standard deviation in age at death (age 0)
-bubble_countries_sd0 <- ggplot(results, aes(x=e0, y=sd0, size = popsize)) +
+bubble_countries_sd0 <- ggplot(subset(results, substr(results$Year, 1, 4) == '2015'), aes(x=e0, y=sd0, size = popsize)) +
   geom_point(alpha=0.5, color='#dd0031') +
   scale_size(range = c(.1, 16), name = "Population (2015)") +
   ylab("Standard deviation in age at death (age 0)") +
@@ -214,7 +216,7 @@ unlink("bubble_countries_2015.tiff")
 
 
 # standard deviation in age at death (age 10)
-bubble_countries_sd10 <- ggplot(results, aes(x=e0, y=sd10, size = popsize)) +
+bubble_countries_sd10 <- ggplot(subset(results, substr(results$Year, 1, 4) == '2015'), aes(x=e0, y=sd10, size = popsize)) +
   geom_point(alpha=0.5, color='#dd0031') +
   scale_size(range = c(.1, 16), name = "Population (2015)") +
   ylab("Standard deviation in age at death (age 10)") +
@@ -241,7 +243,7 @@ unlink("bubble_countries_2015.tiff")
 
 
 # gini coefficient (all ages)
-bubble_countries_gini <- ggplot(results, aes(x=e0, y=gini, size = popsize)) +
+bubble_countries_gini <- ggplot(subset(results, substr(results$Year, 1, 4) == '2015'), aes(x=e0, y=gini, size = popsize)) +
   geom_point(alpha=0.5, color='#dd0031') +
   scale_size(range = c(.1, 16), name = "Population (2015)") +
   ylab("Gini coefficient - age at death (all ages)") +
@@ -268,13 +270,9 @@ unlink("bubble_countries_2015.tiff")
 
 
 # 3 - UK bubble plot
-combined <- s3read_using(import # Which function are we using to read
-                        , object = 'combined.RDS' # File to open
-                        , bucket = buck) # Bucket name defined above
+years <- unique(subset(results,country == 'UK' & !is.na(results$Year))$Year)
 
-years <- unique(combined$Year[!is.na(combined$Year)])
-
-uk_bubble <- ggplot(subset(combined, country == 'UK hist'), aes(x=e0, y=ld0)) +
+uk_bubble <- ggplot(subset(results, country == 'UK'), aes(x=e0, y=ld0)) +
   geom_point(alpha=0.5, color='#dd0031') +
   ylab("Life disparity") +
   xlab("Life expectancy at birth") +
@@ -301,9 +299,13 @@ unlink("uk_bubble_overtime.tiff")
 
 
 # 4 - overlay both bubble plots
+results <- results %>%
+  mutate(group = case_when(
+    country == 'UK' ~ 1,
+    country != 'UK' & substr(results$Year, 1, 4) == '2015' ~ 0))
 
-bubble_overlay <- ggplot(combined, aes(x=e0, y=ld0, size=popsize, color = group, group = group)) +
-  geom_point(alpha=0.5, aes(color=group)) +
+bubble_overlay <- ggplot(subset(results, (country == 'UK') | (substr(results$Year, 1, 4) == '2015')), aes(x=e0, y=ld0, size=popsize, color = factor(group), group = group)) +
+  geom_point(alpha=0.5, aes(color=factor(group))) +
   scale_size(range = c(.1, 16), name = "Population (2015)", breaks = c(1000000, 10000000, 100000000), labels = c("1,000,000", "10,000,000", "100,000,000")) +
   scale_color_manual(values = c('#dd0031', '#00AFBB'), name= "", labels=c("All countries - 2015", "UK - historical")) +
   scale_fill_viridis(discrete=TRUE, guide= "none", option="A") +

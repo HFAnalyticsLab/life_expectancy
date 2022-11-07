@@ -41,9 +41,9 @@ countries <- c("australia", "austria", "belarus", "belgium", "bulgaria", "canada
                "chile", "croatia", "czechia", "denmark", "estonia", "finland", "france", 
                "germany", "greece", "hongkong", "hungary", "iceland", "ireland",
                "israel", "italy", "japan", "korea", "latvia", "lithuania", "luxembourg",
-               "netherlands", "norway", "poland", "portugal", "slovakia", "slovenia",
+               "netherlands", "newzealand", "norway", "poland", "portugal", "slovakia", "slovenia",
                "spain", "sweden", "switzerland", "taiwan", "uk", "usa")
-  # new zealand, russia and ukraine data available but only for 2010-13
+  # russia and ukraine data available but only for 2010-13
 
 # Create empty data frame
 results <- data.frame(Year=character(),
@@ -59,7 +59,7 @@ results <- data.frame(Year=character(),
 
 
 for (country in countries){
-  
+
 # Import data ####
     ## data were downloaded from: https://www.mortality.org/ 
     ## using 1x5 life tables for each country
@@ -207,7 +207,8 @@ results <- results %>%
 results <- results %>%
   mutate(country = replace(country, country == "Uk", "UK"),
         country = replace(country, country == "Usa", "USA"),
-        country = replace(country, country == "Hongkong", "Hong Kong"))
+        country = replace(country, country == "Hongkong", "Hong Kong"),
+        country = replace(country, country == "Newzealand", "New Zealand"))
 
 
 nrow(results)

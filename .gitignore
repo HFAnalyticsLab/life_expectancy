@@ -42,3 +42,11 @@ vignettes/*.pdf
 *data/
 *.rds
 *.png
+
+
+# Keep only public analysis file
+1-calculate_life_disparity>R
+2-plots.R
+3-checking_japan.R
+4-projections.R
+5-projections_plots.R

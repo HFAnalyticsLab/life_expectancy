@@ -417,6 +417,7 @@ s3write_using(combined # What R object we are saving
 
 
 # Following bit of code is from the Hiam et al. paper on life disparity
+  # I couldn't get this to work
   ## https://github.com/JonMinton/rising_tide/blob/master/analyses.Rmd
 Hiam_paper_dta <- s3read_using(import
                            , object = 's3://thf-dap-tier0-projects-iht-067208b7-projectbucket-1mrmynh0q7ljp/Francesca/life_expectancy/data/dta_Mx.RDS' )
